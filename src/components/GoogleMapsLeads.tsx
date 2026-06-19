@@ -6,7 +6,10 @@ const GoogleMapsLeads = () => {
   return (
     <div className="p-4">
       {/* Example Button Change: Applying a generic purple background */}
-      <button className="bg-purple-600 text-white font-bold py-2 px-4 rounded hover:bg-purple-700">
+      <button
+        className="text-white font-bold py-2 px-4 rounded hover:opacity-90"
+        style={{ backgroundColor: '#2596be' }}
+      >
         View Leads
       </button>
 
