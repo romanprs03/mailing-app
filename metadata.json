@@ -1,0 +1,6 @@
+{
+  "name": "The AI Room",
+  "description": "Plataforma de automatización de campañas de Cold Emailing de alto rendimiento.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
