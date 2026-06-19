@@ -405,128 +405,105 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                 </div>
               </div>
 
-              <form onSubmit={handleInitiateSearch} className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  
-                  {/* Location Query Input */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor="locationQuery">
-                      Ubicación de Búsqueda
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                        <Map className="h-4 w-4" />
-                      </div>
-                      <input
-                        type="text"
-                        id="locationQuery"
-                        className="w-full bg-slate-50 rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
-                        placeholder="Ej: Palermo, Buenos Aires"
-                        value={locationQuery}
-                        onChange={(e) => setLocationQuery(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Servicio a vender */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor="servicio_a_vender">
-                      Servicio a Ofrecer
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <input
-                        type="text"
-                        id="servicio_a_vender"
-                        className="w-full bg-slate-50 rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
-                        placeholder="Ej: Gestión de Redes Sociales o Landing Pages"
-                        value={servicioAVender}
-                        onChange={(e) => setServicioAVender(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
+              <form onSubmit={handleInitiateSearch} className="space-y-3">
+                <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                  <span className="flex-1">Ubicación</span>
+                  <span className="flex-1">Servicio</span>
+                  <span className="flex-[2]">Rubros</span>
+                  <span className="w-20 text-center">Límite</span>
+                  <span className="w-28" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  
-                  {/* SearchStringsArray (Chips Input) */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Categorías / Rubros de Negocios
-                    </label>
-                    <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-2 text-sm text-slate-800 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#4f39fb]/20 focus-within:border-[#4f39fb] outline-none transition-all space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {searchStringsArray.map((chip, index) => (
-                          <span 
-                            key={index} 
-                            className="inline-flex items-center gap-1 rounded-md bg-[#4f39fb]/10 px-2.5 py-1 text-xs font-semibold text-[#4f39fb] border border-[#4f39fb]/20"
-                          >
-                            {chip}
-                            <button
-                              type="button"
-                              onClick={() => removeChip(index)}
-                              className="text-[#4f39fb]/60 hover:text-[#4f39fb] transition-colors"
-                            >
-                              <X className="h-3 w-3 shrink-0" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                      <input
-                        type="text"
-                        value={currentChip}
-                        onChange={(e) => setCurrentChip(e.target.value)}
-                        onKeyDown={handleKeyDownChip}
-                        className="w-full bg-transparent border-none py-1 px-1.5 text-sm outline-none placeholder:text-slate-400 font-medium min-w-[200px]"
-                        placeholder="Escribe rubros, presiona Enter o coma para añadir..."
-                      />
+                <div className="flex flex-col md:flex-row md:items-stretch gap-2">
+                  {/* Location */}
+                  <div className="relative flex-1 min-w-0">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                      <Map className="h-4 w-4" />
                     </div>
+                    <input
+                      type="text"
+                      id="locationQuery"
+                      className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 pl-9 pr-3 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
+                      placeholder="Ubicación (ej: Palermo, Buenos Aires)"
+                      value={locationQuery}
+                      onChange={(e) => setLocationQuery(e.target.value)}
+                    />
                   </div>
 
-                  {/* maxCrawledPlacesPerSearch */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor="maxCrawledPlacesPerSearch">
-                      Límite Máximo de Negocios
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        id="maxCrawledPlacesPerSearch"
-                        max={100}
-                        min={10}
-                        className="w-full bg-slate-50 rounded-xl border border-slate-200 py-2.5 px-4 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-mono font-semibold"
-                        value={maxCrawledPlacesPerSearch}
-                        onChange={(e) => {
-                          const val = Math.min(100, Math.max(1, Number(e.target.value)));
-                          setMaxCrawledPlacesPerSearch(val);
-                        }}
-                      />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-slate-200/50 px-2 py-1 rounded">
-                        MAX 100
+                  {/* Servicio */}
+                  <div className="relative flex-1 min-w-0">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      id="servicio_a_vender"
+                      className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 pl-9 pr-3 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
+                      placeholder="Servicio a ofrecer"
+                      value={servicioAVender}
+                      onChange={(e) => setServicioAVender(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Rubros (chips) */}
+                  <div className="flex-[2] min-w-0 h-10 bg-slate-50 rounded-lg border border-slate-200 px-2 text-sm text-slate-800 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#4f39fb]/20 focus-within:border-[#4f39fb] outline-none transition-all flex items-center gap-1.5 overflow-x-auto">
+                    {searchStringsArray.map((chip, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 rounded-md bg-[#4f39fb]/10 px-2 py-0.5 text-xs font-semibold text-[#4f39fb] border border-[#4f39fb]/20 shrink-0"
+                      >
+                        {chip}
+                        <button
+                          type="button"
+                          onClick={() => removeChip(index)}
+                          className="text-[#4f39fb]/60 hover:text-[#4f39fb] transition-colors"
+                          aria-label={`Quitar ${chip}`}
+                        >
+                          <X className="h-3 w-3 shrink-0" />
+                        </button>
                       </span>
-                    </div>
+                    ))}
+                    <input
+                      type="text"
+                      value={currentChip}
+                      onChange={(e) => setCurrentChip(e.target.value)}
+                      onKeyDown={handleKeyDownChip}
+                      className="flex-1 min-w-[120px] bg-transparent border-none py-0 px-1 text-sm outline-none placeholder:text-slate-400 font-medium"
+                      placeholder={searchStringsArray.length ? "Añadir rubro…" : "Rubros (Enter para añadir)"}
+                    />
                   </div>
 
-                </div>
+                  {/* Límite */}
+                  <div className="relative w-full md:w-20 shrink-0">
+                    <input
+                      type="number"
+                      id="maxCrawledPlacesPerSearch"
+                      max={100}
+                      min={1}
+                      className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 text-center focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-mono font-semibold"
+                      value={maxCrawledPlacesPerSearch}
+                      onChange={(e) => {
+                        const val = Math.min(100, Math.max(1, Number(e.target.value) || 1));
+                        setMaxCrawledPlacesPerSearch(val);
+                      }}
+                    />
+                  </div>
 
-                <div className="pt-2">
+                  {/* Botón Buscar */}
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="w-full py-3.5 px-6 rounded-xl bg-[#4f39fb] hover:bg-[#4f39fb] hover:shadow-lg hover:shadow-[#4f39fb]/30 text-white font-semibold text-sm shadow-md flex items-center justify-center gap-2.5 transition-all text-center relative cursor-pointer"
+                    className="h-10 px-4 rounded-lg bg-[#4f39fb] hover:bg-[#4f39fb]/90 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 w-full md:w-28"
                   >
                     {isSearching ? (
                       <>
                         <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
-                        Iniciando Motor...
+                        Buscando…
                       </>
                     ) : (
                       <>
                         <Search className="h-4 w-4 shrink-0" />
-                        Iniciar Búsqueda
+                        Buscar
                       </>
                     )}
                   </motion.button>
