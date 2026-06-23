@@ -75,7 +75,9 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
     setSaveFeedback(null);
     setSaving(true);
     try {
+      const idCampana = selectedCampaign.id_campana || "";
       const response = await updateCampaign(
+        idCampana,
         id_usuario,
         values.campaign_name,
         values.asunto,

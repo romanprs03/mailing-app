@@ -70,6 +70,7 @@ export interface UpdateCampaignPayload {
 }
 
 export interface CampanaAnterior {
+  id_campana?: string;
   campaign_name?: string;
   nombre_campana?: string;
   asunto?: string;

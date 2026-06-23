@@ -307,7 +307,8 @@ export async function updateCampaign(
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   const payload: Record<string, any> = {
     id_usuario,
-    campaign_name
+    campaign_name,
+    id_campana
   };
 
   if (asunto.trim() !== "") {
