@@ -246,7 +246,7 @@ export default function App() {
                       : "text-slate-350 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
-                  <MapPin className="h-4 w-4 shrink-0 text-red-400" />
+                  <MapPin className="h-4 w-4 shrink-0" />
                   Google Maps Leads
                 </button>
 

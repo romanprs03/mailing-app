@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  MapPin, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
-  Phone, 
-  Map, 
-  Globe, 
-  Star, 
+import {
+  MapPin,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
+  Map,
+  Globe,
+  Star,
   HelpCircle,
-  Check, 
-  X, 
-  Save, 
+  Check,
+  X,
+  Save,
   ArrowLeft,
   Mail,
   Instagram,
   Facebook,
   Video,
   ExternalLink,
-  MessageSquare,
   Sparkles,
   RefreshCw
 } from "lucide-react";
@@ -35,12 +34,12 @@ interface Lead {
   creado_en?: string;
   telefono?: string;
   direccion?: string;
-  website_url?: string;
   rating?: string | number;
-  tiene_website?: boolean;
-  tiene_instagram?: boolean;
-  tiene_facebook?: boolean;
-  tiene_tiktok?: boolean;
+  // URLs de redes sociales (si están, se muestran como activas con hipervínculo)
+  website_url?: string;
+  instagram_url?: string;
+  facebook_url?: string;
+  tiktok_url?: string;
   necesidad_detectada?: string;
   asunto?: string;
   cuerpo?: string;
@@ -68,6 +67,9 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
   const [maxCrawledPlacesPerSearch, setMaxCrawledPlacesPerSearch] = useState<number>(100);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
+  // Search Banner State: 'idle' | 'searching' | 'finished'
+  const [searchStatus, setSearchStatus] = useState<"idle" | "searching" | "finished">("idle");
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
@@ -89,11 +91,8 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       telefono: "+54 11 4802-9988",
       direccion: "Av. Libertador 4100, Palermo, Buenos Aires",
       website_url: "https://bistrodelparque-ficticio.com",
+      instagram_url: "https://instagram.com/bistrodelparque",
       rating: 4.6,
-      tiene_website: true,
-      tiene_instagram: true,
-      tiene_facebook: false,
-      tiene_tiktok: false,
       necesidad_detectada: "No cuenta con Facebook ni TikTok activa. Su sitio web actual muestra tiempos de carga altos y carece de llamado a la acción enfocado en conversión gastronómica.",
       asunto: "Propuesta de potenciar reservas en Bistró del Parque via Redes y Web",
       cuerpo: "Hola equipo de Bistró del Parque,\n\nEstaba viendo su excelente calificación de 4.6 estrellas en Google Maps y noté que no están aprovechando canales clave como Facebook o TikTok para conectar con más comensales en Palermo.\n\nDiseñé una estrategia de corto plazo para aumentar sus reservas semanales utilizando automatización y optimización de su embudo digital.\n\n¿Les interesaría coordinar una breve llamada de 5 minutos esta semana para presentárselas?\n\nSaludos atentos,\n[Tu Nombre]"
@@ -106,11 +105,10 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       telefono: "+54 11 5530-1122",
       direccion: "Gorriti 4390, Palermo, Buenos Aires",
       website_url: "https://cafemistico-ejemplo.com.ar",
+      instagram_url: "https://instagram.com/cafemistico",
+      facebook_url: "https://facebook.com/cafemistico",
+      tiktok_url: "https://tiktok.com/@cafemistico",
       rating: 4.2,
-      tiene_website: true,
-      tiene_instagram: true,
-      tiene_facebook: true,
-      tiene_tiktok: true,
       necesidad_detectada: "Cuenta con amplia presencia digital pero los enlaces de reservas de Instagram están rotos, provocando dispersión de tráfico caliente.",
       asunto: "Solución de embudo y optimización de reservas en Gorriti",
       cuerpo: "Hola,\n\nPasé por su gran local en Gorriti y soy fanático de su café de especialidad. Sin embargo, al intentar reservar una mesa desde su Instagram para un evento, el link de redirección arrojaba un error de carga.\n\nEsto les está haciendo perder clientes recurrentes de Palermo diariamente. He preparado un checklist rápido para solucionar esto y maximizar su conversión.\n\nQuedo a disposición,\n[Tu Nombre]"
@@ -123,11 +121,8 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       telefono: "+54 11 3911-5020",
       direccion: "Honduras 5120, Palermo, Buenos Aires",
       website_url: "",
+      instagram_url: "https://instagram.com/atenaspalermo",
       rating: 3.8,
-      tiene_website: false,
-      tiene_instagram: true,
-      tiene_facebook: false,
-      tiene_tiktok: false,
       necesidad_detectada: "Falta absoluta de sitio web de aterrizaje y captación de matrículas. Dependen 100% de mensajes directos manuales poco optimizados.",
       asunto: "Sistema automático de captación de matrículas para Gimnasio Atenas",
       cuerpo: "Estimado Director de Atenas Palermo,\n\nIdentifiqué que actualmente no disponen de un sitio web optimizado para registrar nuevos alumnos, lo que sobrecarga su Instagram con consultas repetitivas de precios.\n\nPodemos digitalizar este onboarding con una landing page de alta velocidad que cierre inscripciones las 24 horas del día de manera automática.\n\n¿Hablamos esta semana?\n\nUn saludo,"
@@ -140,11 +135,8 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       telefono: "+54 11 4771-0012",
       direccion: "Gorriti 4800, Palermo, Buenos Aires",
       website_url: "https://odontogorriti.com",
+      facebook_url: "https://facebook.com/odontogorriti",
       rating: 4.9,
-      tiene_website: true,
-      tiene_instagram: false,
-      tiene_facebook: true,
-      tiene_tiktok: false,
       necesidad_detectada: "Rating alto (4.9) pero sin comunidad ni engagement en Instagram. No educan al paciente local sobre tratamientos estéticos de alto ticket.",
       asunto: "Estrategia de atracción de pacientes estéticos para Odontología Gorriti",
       cuerpo: "Hola Dr.,\n\nFelicitaciones por tan impecable reputación de 4.9 estrellas en Palermo. Es difícil encontrar clínicas con tal satisfacción de pacientes.\n\nAnalizando sus canales, vemos una gran oportunidad desaprovechada al no contar con Instagram para potenciar la recomendación social de tratamientos de implantes y estética.\n\nCompilamos un plan visual simple explicando cómo capturar 10 nuevos pacientes calificados al mes.\n\nAbrazo,"
@@ -157,11 +149,10 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       telefono: "+54 11 4115-9900",
       direccion: "Fitz Roy 1840, Palermo, Buenos Aires",
       website_url: "",
+      instagram_url: "https://instagram.com/sushiflow",
+      facebook_url: "https://facebook.com/sushiflow",
+      tiktok_url: "https://tiktok.com/@sushiflow",
       rating: 4.1,
-      tiene_website: false,
-      tiene_instagram: true,
-      tiene_facebook: true,
-      tiene_tiktok: true,
       necesidad_detectada: "Falta canalización web para ordenar online de forma directa, dejándole 15% a 20% de comisión a plataformas intermediarias como PedidosYa.",
       asunto: "Ahorro de comisiones y sistema de reservas directas para Sushi Flow",
       cuerpo: "Hola Sushi Flow Fitz Roy,\n\nSu marca tiene un posicionamiento estético sobresaliente en Palermo. Sin embargo, no disponer de una web propia para pedidos directos les extrae un amplio porcentaje de rentabilidad en plataformas de delivery.\n\nPodemos armarles una tienda express propia integrada para retener a sus clientes leales gratis.\n\n¿Tendrán 5 minutos esta semana para analizar números?\n\nAtentamente,\n[Tu Nombre]"
@@ -221,16 +212,49 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
   }, [id_usuario]);
 
   // Handle Search Trigger animation
-  const handleInitiateSearch = (e: React.FormEvent) => {
+  const handleInitiateSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Armar el payload con los 4 parámetros pedidos al usuario
+    const payload = {
+      id_usuario,
+      ciudad: locationQuery.trim(),
+      servicio: servicioAVender.trim(),
+      rubros: searchStringsArray,
+      max_resultados: maxCrawledPlacesPerSearch
+    };
+
     setIsSearching(true);
-    
-    showToast("🔍 ¡Simulación iniciada! El backend comenzará la recolección en Google Maps.");
-    
-    // Simulate interactive turnaround
-    setTimeout(() => {
+    setSearchStatus("searching");
+
+    try {
+      const response = await fetch("https://romanparisi.online/webhook/d8645069-3046-474c-831c-4e9a2fa336ce", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`El webhook respondió con código: ${response.status}`);
+      }
+
+      // Esperar confirmación antes de cerrar el banner
+      setSearchStatus("finished");
+      // Refrescar la tabla de leads ahora que el webhook terminó
+      await fetchLeads();
+    } catch (err) {
+      console.error("Falló la búsqueda en el webhook:", err);
+      setSearchStatus("finished");
+    } finally {
       setIsSearching(false);
-    }, 1500);
+    }
+  };
+
+  // Restablecer el banner de búsqueda cuando el usuario cierre el aviso manualmente
+  const dismissSearchBanner = () => {
+    setSearchStatus("idle");
   };
 
   // Chips manipulation inside lead search engine
@@ -277,7 +301,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
     // Trigger Fire-and-forget POST
     try {
-      fetch("https://romanparisi.online/webhook/0ac4742e-7779-4fbc-9c6a-40ccda6a9b38", {
+      fetch("https://romanparisi.online/webhook/9c05bd5d-d444-4e36-a2a3-03cda855ecd7", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -303,7 +327,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
     // Trigger Toast confirmation immediately
     showToast("💾 ¡Mensaje guardado exitosamente! Notificación enviada al webhook.");
-    
+
     // Smoothly go back
     setSelectedLead(null);
   };
@@ -407,7 +431,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
               <form onSubmit={handleInitiateSearch} className="space-y-3">
                 <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                  <span className="flex-1">Ubicación</span>
+                  <span className="flex-1">Ciudad</span>
                   <span className="flex-1">Servicio</span>
                   <span className="flex-[2]">Rubros</span>
                   <span className="w-20 text-center">Límite</span>
@@ -424,7 +448,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       type="text"
                       id="locationQuery"
                       className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 pl-9 pr-3 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
-                      placeholder="Ubicación (ej: Palermo, Buenos Aires)"
+                      placeholder="Ciudad (ej: Palermo, Buenos Aires)"
                       value={locationQuery}
                       onChange={(e) => setLocationQuery(e.target.value)}
                     />
@@ -510,6 +534,63 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                 </div>
               </form>
             </div>
+
+            {/* BANNER DE ESTADO DE BÚSQUEDA */}
+            <AnimatePresence>
+              {searchStatus !== "idle" && (
+                <motion.div
+                  key="search-banner"
+                  initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.25 }}
+                  className={`rounded-2xl border p-5 md:p-6 shadow-sm flex items-center gap-4 ${
+                    searchStatus === "searching"
+                      ? "border-[#4f39fb]/30 bg-[#4f39fb]/5"
+                      : "border-emerald-200 bg-emerald-50/60"
+                  }`}
+                >
+                  {searchStatus === "searching" ? (
+                    <>
+                      <div className="relative h-12 w-12 shrink-0 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-2 border-[#4f39fb]/20" />
+                        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4f39fb] border-r-[#4f39fb] animate-spin" />
+                        <Search className="h-5 w-5 text-[#4f39fb]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-[#4f39fb]">
+                          La búsqueda ha iniciado, no abandone.
+                        </p>
+                        <p className="text-xs text-slate-600 mt-0.5 font-medium">
+                          Estamos extrayendo leads en Google Maps con los parámetros que indicaste. Esto puede tardar unos minutos.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="h-12 w-12 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <Check className="h-6 w-6 text-emerald-600 stroke-[3px]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-emerald-800">
+                          ¡Búsqueda terminada! Encuentre sus nuevos leads debajo y la campaña nueva en su Dashboard.
+                        </p>
+                        <p className="text-xs text-emerald-700/80 mt-0.5 font-medium">
+                          El procesamiento en Google Maps se completó con éxito.
+                        </p>
+                      </div>
+                      <button
+                        onClick={dismissSearchBanner}
+                        className="p-2 text-emerald-700/60 hover:text-emerald-900 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                        aria-label="Cerrar aviso de búsqueda"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* SECTOR DE LEADS INFERIOR */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
@@ -728,81 +809,148 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                   </div>
                 </div>
 
-                {/* Indicadores Digitales Boolean Checkboxes */}
+                {/* Indicadores Digitales: URL-based */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
                     Canales de Contacto Identificados
                   </h4>
 
                   <div className="grid grid-cols-2 gap-3">
-                    
+
                     {/* Website indicator */}
-                    <div className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all ${
-                      selectedLead.tiene_website 
-                        ? "bg-emerald-50/50 border-emerald-100 text-emerald-800" 
-                        : "bg-slate-50 border-slate-150 text-slate-400"
-                    }`}>
-                      <Globe className={`h-5 w-5 ${selectedLead.tiene_website ? "text-emerald-600" : "text-slate-300"}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Sitio Web</span>
-                      {selectedLead.tiene_website ? (
-                        <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
-                          <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
-                        </div>
-                      ) : (
-                        <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
-                      )}
-                    </div>
+                    {(() => {
+                      const has = Boolean(selectedLead.website_url);
+                      const cardBase = "p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all";
+                      const activeStyle = "bg-emerald-50/50 border-emerald-100 text-emerald-800 hover:bg-emerald-50 cursor-pointer";
+                      const inactiveStyle = "bg-slate-50 border-slate-150 text-slate-400";
+                      const Wrapper: any = has ? motion.a : "div";
+                      const wrapperProps = has
+                        ? {
+                            href: selectedLead.website_url,
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            whileTap: { scale: 0.97 }
+                          }
+                        : {};
+                      return (
+                        <Wrapper
+                          className={`${cardBase} ${has ? activeStyle : inactiveStyle}`}
+                          {...wrapperProps}
+                        >
+                          <Globe className={`h-5 w-5 ${has ? "text-emerald-600" : "text-slate-300"}`} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Sitio Web</span>
+                          {has ? (
+                            <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
+                            </div>
+                          ) : (
+                            <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
+                          )}
+                        </Wrapper>
+                      );
+                    })()}
 
                     {/* Instagram indicator */}
-                    <div className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all ${
-                      selectedLead.tiene_instagram 
-                        ? "bg-emerald-50/50 border-emerald-100 text-emerald-800" 
-                        : "bg-slate-50 border-slate-150 text-slate-400"
-                    }`}>
-                      <Instagram className={`h-5 w-5 ${selectedLead.tiene_instagram ? "text-pink-600" : "text-slate-300"}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Instagram</span>
-                      {selectedLead.tiene_instagram ? (
-                        <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
-                          <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
-                        </div>
-                      ) : (
-                        <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
-                      )}
-                    </div>
+                    {(() => {
+                      const url = selectedLead.instagram_url;
+                      const has = Boolean(url);
+                      const cardBase = "p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all";
+                      const activeStyle = "bg-emerald-50/50 border-emerald-100 text-emerald-800 hover:bg-emerald-50 cursor-pointer";
+                      const inactiveStyle = "bg-slate-50 border-slate-150 text-slate-400";
+                      const Wrapper: any = has ? motion.a : "div";
+                      const wrapperProps = has
+                        ? {
+                            href: url,
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            whileTap: { scale: 0.97 }
+                          }
+                        : {};
+                      return (
+                        <Wrapper
+                          className={`${cardBase} ${has ? activeStyle : inactiveStyle}`}
+                          {...wrapperProps}
+                        >
+                          <Instagram className={`h-5 w-5 ${has ? "text-pink-600" : "text-slate-300"}`} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Instagram</span>
+                          {has ? (
+                            <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
+                            </div>
+                          ) : (
+                            <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
+                          )}
+                        </Wrapper>
+                      );
+                    })()}
 
                     {/* Facebook indicator */}
-                    <div className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all ${
-                      selectedLead.tiene_facebook 
-                        ? "bg-emerald-50/50 border-emerald-100 text-emerald-800" 
-                        : "bg-slate-50 border-slate-150 text-slate-400"
-                    }`}>
-                      <Facebook className={`h-5 w-5 ${selectedLead.tiene_facebook ? "text-blue-600" : "text-slate-300"}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Facebook</span>
-                      {selectedLead.tiene_facebook ? (
-                        <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
-                          <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
-                        </div>
-                      ) : (
-                        <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
-                      )}
-                    </div>
+                    {(() => {
+                      const url = selectedLead.facebook_url;
+                      const has = Boolean(url);
+                      const cardBase = "p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all";
+                      const activeStyle = "bg-emerald-50/50 border-emerald-100 text-emerald-800 hover:bg-emerald-50 cursor-pointer";
+                      const inactiveStyle = "bg-slate-50 border-slate-150 text-slate-400";
+                      const Wrapper: any = has ? motion.a : "div";
+                      const wrapperProps = has
+                        ? {
+                            href: url,
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            whileTap: { scale: 0.97 }
+                          }
+                        : {};
+                      return (
+                        <Wrapper
+                          className={`${cardBase} ${has ? activeStyle : inactiveStyle}`}
+                          {...wrapperProps}
+                        >
+                          <Facebook className={`h-5 w-5 ${has ? "text-blue-600" : "text-slate-300"}`} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Facebook</span>
+                          {has ? (
+                            <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
+                            </div>
+                          ) : (
+                            <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
+                          )}
+                        </Wrapper>
+                      );
+                    })()}
 
                     {/* TikTok indicator */}
-                    <div className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all ${
-                      selectedLead.tiene_tiktok 
-                        ? "bg-emerald-50/50 border-emerald-100 text-emerald-800" 
-                        : "bg-slate-50 border-slate-150 text-slate-400"
-                    }`}>
-                      <Video className={`h-5 w-5 ${selectedLead.tiene_tiktok ? "text-rose-600" : "text-slate-300"}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">TikTok</span>
-                      {selectedLead.tiene_tiktok ? (
-                        <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
-                          <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
-                        </div>
-                      ) : (
-                        <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
-                      )}
-                    </div>
+                    {(() => {
+                      const url = selectedLead.tiktok_url;
+                      const has = Boolean(url);
+                      const cardBase = "p-3.5 rounded-xl border flex flex-col items-center justify-center text-center space-y-1.5 transition-all";
+                      const activeStyle = "bg-emerald-50/50 border-emerald-100 text-emerald-800 hover:bg-emerald-50 cursor-pointer";
+                      const inactiveStyle = "bg-slate-50 border-slate-150 text-slate-400";
+                      const Wrapper: any = has ? motion.a : "div";
+                      const wrapperProps = has
+                        ? {
+                            href: url,
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            whileTap: { scale: 0.97 }
+                          }
+                        : {};
+                      return (
+                        <Wrapper
+                          className={`${cardBase} ${has ? activeStyle : inactiveStyle}`}
+                          {...wrapperProps}
+                        >
+                          <Video className={`h-5 w-5 ${has ? "text-rose-600" : "text-slate-300"}`} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">TikTok</span>
+                          {has ? (
+                            <div className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5 stroke-[3px]" /> SÍ
+                            </div>
+                          ) : (
+                            <div className="bg-slate-200/60 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">NO</div>
+                          )}
+                        </Wrapper>
+                      );
+                    })()}
 
                   </div>
                 </div>
