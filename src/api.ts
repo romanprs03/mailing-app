@@ -298,6 +298,7 @@ export async function fetchCampaignMetrics(id_usuario: string, id_campana: strin
  * Envía los campos de redacción al webhook de update; los campos vacíos se omiten.
  */
 export async function updateCampaign(
+  id_campana: string,
   id_usuario: string,
   campaign_name: string,
   asunto: string,
