@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { saveUserSettings } from "../api";
-import { Save, ShieldAlert, CheckCircle2, RefreshCw, Info, HelpCircle, Shield, Sparkles, Scale, AlertOctagon, MailCheck, DollarSign, ExternalLink } from "lucide-react";
+import { Save, ShieldAlert, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface SettingsProps {
   id_usuario: string;
@@ -37,17 +37,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
   const [mailjetApiKey, setMailjetApiKey] = useState(original.mailjet_api_key);
   const [mailjetSecretKey, setMailjetSecretKey] = useState(original.mailjet_secret_key);
 
-  // Estados de campaña actual (asunto, cuerpo y nombre modificables desde ajustes)
-  const [nombreRemitente, setNombreRemitente] = useState("");
-  const [asunto, setAsunto] = useState("");
-  const [cuerpoHtml, setCuerpoHtml] = useState("");
-  const [cuerpoTexto, setCuerpoTexto] = useState("");
-
-  const [origNombreRemitente, setOrigNombreRemitente] = useState("");
-  const [origAsunto, setOrigAsunto] = useState("");
-  const [origCuerpoHtml, setOrigCuerpoHtml] = useState("");
-  const [origCuerpoTexto, setOrigCuerpoTexto] = useState("");
-
   const [validationError, setValidationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -71,26 +60,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
     }
   }, [initialSettings]);
 
-  // Sincronizar asunto/cuerpo/nombre de la campaña desde localStorage con clave de usuario
-  useEffect(() => {
-    if (id_usuario) {
-      const savedAsunto = localStorage.getItem(`theairoom_${id_usuario}_campaign_asunto`) || "";
-      const savedHtml = localStorage.getItem(`theairoom_${id_usuario}_campaign_cuerpo_html`) || "";
-      const savedText = localStorage.getItem(`theairoom_${id_usuario}_campaign_cuerpo_texto`) || "";
-      const savedName = localStorage.getItem(`theairoom_${id_usuario}_campaign_name`) || "";
-
-      setAsunto(savedAsunto);
-      setCuerpoHtml(savedHtml);
-      setCuerpoTexto(savedText);
-      setNombreRemitente(savedName);
-
-      setOrigAsunto(savedAsunto);
-      setOrigCuerpoHtml(savedHtml);
-      setOrigCuerpoTexto(savedText);
-      setOrigNombreRemitente(savedName);
-    }
-  }, [id_usuario]);
-
   // Validar domino gratuito/personal
   const validateCorporateEmail = (email: string): boolean => {
     const trimmed = email.trim().toLowerCase();
@@ -108,13 +77,13 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
     ];
 
     const match = trimmed.match(/@([^@\s]+)$/);
-    if (!match) return true; 
+    if (!match) return true;
     const domain = match[1];
 
     if (freeDomains.includes(domain)) {
-      return false; 
+      return false;
     }
-    return true; 
+    return true;
   };
 
   // Construir el JSON que se enviará en tiempo real para visualizarlo
@@ -144,24 +113,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
         payload.limite_diario = parsedLim;
         changes++;
       }
-    }
-
-    // Campos de la campaña actual (Siempre editable por ajustes)
-    if (asunto !== origAsunto) {
-      payload.asunto = asunto;
-      changes++;
-    }
-    if (cuerpoHtml !== origCuerpoHtml) {
-      payload.cuerpo_html = cuerpoHtml;
-      changes++;
-    }
-    if (cuerpoTexto !== origCuerpoTexto) {
-      payload.cuerpo_texto = cuerpoTexto;
-      changes++;
-    }
-    if (nombreRemitente !== origNombreRemitente) {
-      payload.name = nombreRemitente;
-      changes++;
     }
 
     return { payload, changes };
@@ -201,10 +152,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
           limite_diario: limiteDiario,
           mailjet_api_key: mailjetApiKey,
           mailjet_secret_key: mailjetSecretKey,
-          asunto: asunto,
-          cuerpo_html: cuerpoHtml,
-          cuerpo_texto: cuerpoTexto,
-          name: nombreRemitente
         },
         {
           mail_envio: original.mail_envio,
@@ -212,10 +159,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
           limite_diario: original.limite_diario,
           mailjet_api_key: original.mailjet_api_key,
           mailjet_secret_key: original.mailjet_secret_key,
-          asunto: origAsunto,
-          cuerpo_html: origCuerpoHtml,
-          cuerpo_texto: origCuerpoTexto,
-          name: origNombreRemitente
         }
       );
 
@@ -229,19 +172,9 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
       };
       setOriginal(nextOriginal);
 
-      // Guardar el estado de la campaña modificado en la persistencia local con clave de usuario
-      localStorage.setItem(`theairoom_${id_usuario}_campaign_name`, nombreRemitente);
-      localStorage.setItem(`theairoom_${id_usuario}_campaign_asunto`, asunto);
-      localStorage.setItem(`theairoom_${id_usuario}_campaign_cuerpo_html`, cuerpoHtml);
-      localStorage.setItem(`theairoom_${id_usuario}_campaign_cuerpo_texto`, cuerpoTexto);
-      setOrigNombreRemitente(nombreRemitente);
-      setOrigAsunto(asunto);
-      setOrigCuerpoHtml(cuerpoHtml);
-      setOrigCuerpoTexto(cuerpoTexto);
-
       setFeedback({
         type: "success",
-        message: response.message || "¡Ajustes del motor y redacción de la campaña guardados correctamente!"
+        message: response.message || "¡Ajustes del motor guardados correctamente!"
       });
 
       onSaveSuccess(nextOriginal);
@@ -259,7 +192,6 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Formulario de Ajustes */}
       <div className="space-y-6">
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
@@ -268,7 +200,7 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
                 Configuración del Motor
               </h2>
               <p className="text-xs text-slate-500 mt-1 font-sans">
-                Configura tus credenciales, reglas de despacho y el texto de tu campaña actual. Solo se transmitirán las variables alteradas.
+                Configura tus credenciales y reglas de despacho. Solo se transmitirán las variables alteradas.
               </p>
             </div>
           </div>
@@ -405,94 +337,10 @@ export default function Settings({ id_usuario, initialSettings, onSaveSuccess }:
               </div>
             </div>
 
-            {/* Ajuste de Redacción de la Campaña Actual */}
-            <div className="border-t border-slate-100 pt-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                  ⭐️ Redacción de la Campaña Actual
-                </h3>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2.5 py-0.5 rounded font-sans uppercase">
-                  AJUSTES ACTIVOS
-                </span>
-              </div>
-
-              <div className="space-y-4 font-sans">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Nombre del Remitente (name)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Diego de The AI Room"
-                      value={nombreRemitente}
-                      onChange={(e) => setNombreRemitente(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Asunto del Correo (asunto)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Alianza Estratégica con {{empresa}}"
-                      value={asunto}
-                      onChange={(e) => setAsunto(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-semibold text-slate-600">
-                        Cuerpo del Correo HTML (cuerpo_html)
-                      </label>
-                      <span className="text-[9px] text-indigo-500 font-mono font-semibold">HTML editor</span>
-                    </div>
-                    <textarea
-                      rows={8}
-                      placeholder="<p>Ej: Hola {{nombre}}, nos encantó su empresa {{empresa}}...</p>"
-                      value={cuerpoHtml}
-                      onChange={(e) => setCuerpoHtml(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 py-2 px-3 text-xs text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-semibold text-slate-600">
-                        Cuerpo para Texto Plano (cuerpo_texto)
-                      </label>
-                      <span className="text-[9px] text-slate-400 font-mono">Texto plano fallback</span>
-                    </div>
-                    <textarea
-                      rows={8}
-                      placeholder="Ej: Hola {{nombre}}, nos encantó su empresa {{empresa}}..."
-                      value={cuerpoTexto}
-                      onChange={(e) => setCuerpoTexto(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 py-2 px-3 text-xs text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans"
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 p-3 text-[11px] text-slate-500 flex items-start gap-2 border border-slate-100 font-sans animate-fade-in">
-                  <Info className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
-                  <p>
-                    Puedes incluir variables dinámicas:{" "}
-                    <code className="text-indigo-600 font-semibold font-mono bg-indigo-50/50 px-1 rounded">{"{{nombre}}"}</code> y{" "}
-                    <code className="text-indigo-600 font-semibold font-mono bg-indigo-50/50 px-1 rounded">{"{{empresa}}"}</code>.
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <div className="flex justify-between items-center border-t border-slate-100 pt-5 font-sans">
               <span className="text-xs font-medium text-slate-500">
-                {modifiedCount === 0 
-                  ? "Sin modificaciones detectadas" 
+                {modifiedCount === 0
+                  ? "Sin modificaciones detectadas"
                   : `Se enviará(n) exactamente ${modifiedCount} campo(s) editado(s).`
                 }
               </span>

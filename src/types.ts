@@ -61,6 +61,14 @@ export interface MetricasResponse {
   [key: string]: any;
 }
 
+export interface UpdateCampaignPayload {
+  id_usuario: string;
+  campaign_name: string;
+  asunto: string;
+  cuerpo_html: string;
+  cuerpo_texto: string;
+}
+
 export interface CampanaAnterior {
   campaign_name?: string;
   nombre_campana?: string;

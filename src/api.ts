@@ -16,6 +16,7 @@ const REGISTER_WEBHOOK = "https://romanparisi.online/webhook/9183ccb1-3a4d-49c9-
 const SETTINGS_WEBHOOK = "https://romanparisi.online/webhook/7061c1eb-b9b9-4161-91f9-1146b1d44982";
 const CAMPAIGN_WEBHOOK = "https://romanparisi.online/webhook/3eb1d6ac-4e8b-4c7a-9c22-ff42215b7f3f";
 const METRICS_WEBHOOK = "https://romanparisi.online/webhook/786471ae-93fe-456c-899e-9bd55ce88024";
+const UPDATE_CAMPAIGN_WEBHOOK = "https://romanparisi.online/webhook/d69922ab-44c4-457e-b2ed-9823cd539695";
 
 /**
  * Envía credenciales de login al webhook
@@ -290,6 +291,52 @@ export async function fetchCampaignMetrics(id_usuario: string, id_campana: strin
 
   const data = await response.json();
   return data as MetricasResponse;
+}
+
+/**
+ * Actualiza una campaña existente. El backend identifica la campaña por `campaign_name`.
+ * Envía los campos de redacción al webhook de update; los campos vacíos se omiten.
+ */
+export async function updateCampaign(
+  id_usuario: string,
+  campaign_name: string,
+  asunto: string,
+  cuerpo_html: string,
+  cuerpo_texto: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const payload: Record<string, any> = {
+    id_usuario,
+    campaign_name
+  };
+
+  if (asunto.trim() !== "") {
+    payload.asunto = asunto;
+  }
+  if (cuerpo_html.trim() !== "") {
+    payload.cuerpo_html = cuerpo_html;
+  }
+  if (cuerpo_texto.trim() !== "") {
+    payload.cuerpo_texto = cuerpo_texto;
+  }
+
+  const response = await fetch(UPDATE_CAMPAIGN_WEBHOOK, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error al actualizar campaña: ${response.status} ${response.statusText}`);
+  }
+
+  try {
+    const data = await response.json();
+    return data as { success: boolean; message?: string; error?: string };
+  } catch {
+    return { success: true };
+  }
 }
 
 /**

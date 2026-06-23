@@ -7,7 +7,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Onboarding from "./components/Onboarding";
 import Settings from "./components/Settings";
-import CampaignWizard from "./components/CampaignWizard";
+import CampaignsScreen from "./components/CampaignsScreen";
 import Dashboard from "./components/Dashboard";
 import InfoImportante from "./components/InfoImportante";
 import Reenvios from "./components/Reenvios";
@@ -208,7 +208,7 @@ export default function App() {
                   Dashboard General
                 </button>
 
-                {/* 2. Crear Campaña */}
+                {/* 2. Campañas */}
                 <button
                   id="tab_campaign"
                   onClick={() => setCurrentScreen("campaign")}
@@ -219,7 +219,7 @@ export default function App() {
                   }`}
                 >
                   <Send className="h-4 w-4 shrink-0" />
-                  Nueva Campaña
+                  Campañas
                 </button>
 
                 {/* 2.5 Reenvíos */}
@@ -336,7 +336,7 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <h1 className="text-lg font-semibold text-slate-900">
                   {currentScreen === "dashboard" && "Dashboard General"}
-                  {currentScreen === "campaign" && "Diseñador de Campañas"}
+                  {currentScreen === "campaign" && "Campañas"}
                   {currentScreen === "reenvios" && "Campaña de Reenvío"}
                   {currentScreen === "google_maps_leads" && "Google Maps Leads"}
                   {currentScreen === "settings" && "Configuración"}
@@ -384,9 +384,9 @@ export default function App() {
                     exit={{ opacity: 0, y: -15 }}
                     transition={{ duration: 0.18 }}
                   >
-                    <CampaignWizard 
-                      id_usuario={idUsuario} 
-                      onCampaignCreated={handleCampaignCreated} 
+                    <CampaignsScreen
+                      id_usuario={idUsuario}
+                      onCampaignCreated={handleCampaignCreated}
                     />
                   </motion.div>
                 )}
