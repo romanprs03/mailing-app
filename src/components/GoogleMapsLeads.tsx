@@ -177,7 +177,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       }
 
       const data = await response.json();
-      
+
       // Parse array from response flexibly
       let fetchedArray: Lead[] = [];
       if (Array.isArray(data)) {
@@ -188,23 +188,47 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
         else if (Array.isArray(data.items)) fetchedArray = data.items;
       }
 
+      // Normalizar campos: el backend manda "instagram", "facebook", "tiktok"
+      // (y "website_url"). La interface usa "*_url" para todos, así que
+      // aceptamos cualquiera de los dos nombres al llegar.
+      fetchedArray = fetchedArray.map(normalizeLead);
+
       if (fetchedArray && fetchedArray.length > 0) {
         setLeads(fetchedArray);
         setIsUsingFallback(false);
       } else {
         // Log info and use rich fallback items so the app is immediately alive and gorgeous
         console.info("El webhook retornó una lista vacía. Preseteando leads de muestra locales.");
-        setLeads(getFallbackLeads());
+        setLeads(getFallbackLeads().map(normalizeLead));
         setIsUsingFallback(true);
       }
     } catch (err: any) {
       console.warn("Falla en consulta de webhook. Usando listado local para asegurar operatividad:", err);
       setError("No se pudo conectar con el servidor de leads en este momento. Hemos cargado leads simulados.");
-      setLeads(getFallbackLeads());
+      setLeads(getFallbackLeads().map(normalizeLead));
       setIsUsingFallback(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Acepta tanto "instagram" como "instagram_url" desde el backend y lo deja
+  // siempre en la forma canónica de la interface.
+  const normalizeLead = (raw: any): Lead => {
+    if (!raw || typeof raw !== "object") return raw;
+    const pickUrl = (...candidates: any[]): string | undefined => {
+      for (const c of candidates) {
+        if (typeof c === "string" && c.trim() !== "") return c;
+      }
+      return undefined;
+    };
+    return {
+      ...raw,
+      website_url: pickUrl(raw.website_url, raw.website, raw.web),
+      instagram_url: pickUrl(raw.instagram_url, raw.instagram, raw.ig),
+      facebook_url: pickUrl(raw.facebook_url, raw.facebook, raw.fb),
+      tiktok_url: pickUrl(raw.tiktok_url, raw.tiktok, raw.tt)
+    };
   };
 
   useEffect(() => {
@@ -283,7 +307,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
   // Lead detailing selections
   const openLeadDetails = (lead: Lead) => {
-    setSelectedLead(lead);
+    setSelectedLead(normalizeLead(lead));
     setEditedAsunto(lead.asunto || "");
     setEditedCuerpo(lead.cuerpo || "");
   };
