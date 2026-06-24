@@ -8,7 +8,6 @@ import {
   Phone,
   Map,
   Globe,
-  Star,
   HelpCircle,
   Check,
   X,
@@ -28,6 +27,7 @@ interface Lead {
   id_lead?: string | number;
   nombre_negocio?: string;
   nombre?: string;
+  nombre_campana?: string;
   estado_envio?: string;
   estado?: string;
   fecha_creacion?: string;
@@ -35,6 +35,7 @@ interface Lead {
   telefono?: string;
   direccion?: string;
   rating?: string | number;
+  email?: string;
   // URLs de redes sociales (si están, se muestran como activas con hipervínculo)
   website_url?: string;
   instagram_url?: string;
@@ -57,18 +58,27 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isUsingFallback, setIsUsingFallback] = useState<boolean>(false);
 
   // Search Engine Form States
   const [locationQuery, setLocationQuery] = useState<string>("");
   const [currentChip, setCurrentChip] = useState<string>("");
   const [searchStringsArray, setSearchStringsArray] = useState<string[]>(["restaurante", "cafeteria"]);
   const [servicioAVender, setServicioAVender] = useState<string>("");
-  const [maxCrawledPlacesPerSearch, setMaxCrawledPlacesPerSearch] = useState<number>(100);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [maxCrawledPlacesPerSearch, setMaxCrawledPlacesPerSearch] = useState<number>(50);
+
+  // Tope dinámico: 100 dividido entre la cantidad de rubros seleccionados.
+  const maxPorRubro = searchStringsArray.length > 0 ? Math.floor(100 / searchStringsArray.length) : 100;
 
   // Search Banner State: 'idle' | 'searching' | 'finished'
   const [searchStatus, setSearchStatus] = useState<"idle" | "searching" | "finished">("idle");
+  // Refresco manual del banner (botón "ver mis nuevos leads")
+  const [bannerRefreshing, setBannerRefreshing] = useState<boolean>(false);
+  // Cantidad de leads que había antes de iniciar la búsqueda y cuántos esperamos
+  const [leadsBeforeSearch, setLeadsBeforeSearch] = useState<number>(0);
+  const [expectedNewLeads, setExpectedNewLeads] = useState<number>(0);
+
+  // Filtro de búsqueda dentro del listado de leads
+  const [filterTerm, setFilterTerm] = useState<string>("");
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -80,84 +90,6 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Fallback items in case the webhook has no initial entries or returns empty
-  const getFallbackLeads = (): Lead[] => [
-    {
-      id: "fallback-1",
-      nombre_negocio: "Bistró del Parque",
-      estado_envio: "Pendiente",
-      fecha_creacion: "2026-06-15T12:00:00.000Z",
-      telefono: "+54 11 4802-9988",
-      direccion: "Av. Libertador 4100, Palermo, Buenos Aires",
-      website_url: "https://bistrodelparque-ficticio.com",
-      instagram_url: "https://instagram.com/bistrodelparque",
-      rating: 4.6,
-      necesidad_detectada: "No cuenta con Facebook ni TikTok activa. Su sitio web actual muestra tiempos de carga altos y carece de llamado a la acción enfocado en conversión gastronómica.",
-      asunto: "Propuesta de potenciar reservas en Bistró del Parque via Redes y Web",
-      cuerpo: "Hola equipo de Bistró del Parque,\n\nEstaba viendo su excelente calificación de 4.6 estrellas en Google Maps y noté que no están aprovechando canales clave como Facebook o TikTok para conectar con más comensales en Palermo.\n\nDiseñé una estrategia de corto plazo para aumentar sus reservas semanales utilizando automatización y optimización de su embudo digital.\n\n¿Les interesaría coordinar una breve llamada de 5 minutos esta semana para presentárselas?\n\nSaludos atentos,\n[Tu Nombre]"
-    },
-    {
-      id: "fallback-2",
-      nombre_negocio: "Café Místico",
-      estado_envio: "Enviado",
-      fecha_creacion: "2026-06-14T09:30:00.000Z",
-      telefono: "+54 11 5530-1122",
-      direccion: "Gorriti 4390, Palermo, Buenos Aires",
-      website_url: "https://cafemistico-ejemplo.com.ar",
-      instagram_url: "https://instagram.com/cafemistico",
-      facebook_url: "https://facebook.com/cafemistico",
-      tiktok_url: "https://tiktok.com/@cafemistico",
-      rating: 4.2,
-      necesidad_detectada: "Cuenta con amplia presencia digital pero los enlaces de reservas de Instagram están rotos, provocando dispersión de tráfico caliente.",
-      asunto: "Solución de embudo y optimización de reservas en Gorriti",
-      cuerpo: "Hola,\n\nPasé por su gran local en Gorriti y soy fanático de su café de especialidad. Sin embargo, al intentar reservar una mesa desde su Instagram para un evento, el link de redirección arrojaba un error de carga.\n\nEsto les está haciendo perder clientes recurrentes de Palermo diariamente. He preparado un checklist rápido para solucionar esto y maximizar su conversión.\n\nQuedo a disposición,\n[Tu Nombre]"
-    },
-    {
-      id: "fallback-3",
-      nombre_negocio: "Gimnasio Atenas Palermo",
-      estado_envio: "Respondido",
-      fecha_creacion: "2026-06-10T15:10:00.000Z",
-      telefono: "+54 11 3911-5020",
-      direccion: "Honduras 5120, Palermo, Buenos Aires",
-      website_url: "",
-      instagram_url: "https://instagram.com/atenaspalermo",
-      rating: 3.8,
-      necesidad_detectada: "Falta absoluta de sitio web de aterrizaje y captación de matrículas. Dependen 100% de mensajes directos manuales poco optimizados.",
-      asunto: "Sistema automático de captación de matrículas para Gimnasio Atenas",
-      cuerpo: "Estimado Director de Atenas Palermo,\n\nIdentifiqué que actualmente no disponen de un sitio web optimizado para registrar nuevos alumnos, lo que sobrecarga su Instagram con consultas repetitivas de precios.\n\nPodemos digitalizar este onboarding con una landing page de alta velocidad que cierre inscripciones las 24 horas del día de manera automática.\n\n¿Hablamos esta semana?\n\nUn saludo,"
-    },
-    {
-      id: "fallback-4",
-      nombre_negocio: "Odontología Integral Gorriti",
-      estado_envio: "Pendiente",
-      fecha_creacion: "2026-06-16T18:45:00.000Z",
-      telefono: "+54 11 4771-0012",
-      direccion: "Gorriti 4800, Palermo, Buenos Aires",
-      website_url: "https://odontogorriti.com",
-      facebook_url: "https://facebook.com/odontogorriti",
-      rating: 4.9,
-      necesidad_detectada: "Rating alto (4.9) pero sin comunidad ni engagement en Instagram. No educan al paciente local sobre tratamientos estéticos de alto ticket.",
-      asunto: "Estrategia de atracción de pacientes estéticos para Odontología Gorriti",
-      cuerpo: "Hola Dr.,\n\nFelicitaciones por tan impecable reputación de 4.9 estrellas en Palermo. Es difícil encontrar clínicas con tal satisfacción de pacientes.\n\nAnalizando sus canales, vemos una gran oportunidad desaprovechada al no contar con Instagram para potenciar la recomendación social de tratamientos de implantes y estética.\n\nCompilamos un plan visual simple explicando cómo capturar 10 nuevos pacientes calificados al mes.\n\nAbrazo,"
-    },
-    {
-      id: "fallback-5",
-      nombre_negocio: "Sushi Flow",
-      estado_envio: "Pendiente",
-      fecha_creacion: "2026-06-17T11:22:15.000Z",
-      telefono: "+54 11 4115-9900",
-      direccion: "Fitz Roy 1840, Palermo, Buenos Aires",
-      website_url: "",
-      instagram_url: "https://instagram.com/sushiflow",
-      facebook_url: "https://facebook.com/sushiflow",
-      tiktok_url: "https://tiktok.com/@sushiflow",
-      rating: 4.1,
-      necesidad_detectada: "Falta canalización web para ordenar online de forma directa, dejándole 15% a 20% de comisión a plataformas intermediarias como PedidosYa.",
-      asunto: "Ahorro de comisiones y sistema de reservas directas para Sushi Flow",
-      cuerpo: "Hola Sushi Flow Fitz Roy,\n\nSu marca tiene un posicionamiento estético sobresaliente en Palermo. Sin embargo, no disponer de una web propia para pedidos directos les extrae un amplio porcentaje de rentabilidad en plataformas de delivery.\n\nPodemos armarles una tienda express propia integrada para retener a sus clientes leales gratis.\n\n¿Tendrán 5 minutos esta semana para analizar números?\n\nAtentamente,\n[Tu Nombre]"
-    }
-  ];
 
   // Fetch initial leads from Webhook
   const fetchLeads = async () => {
@@ -191,22 +123,12 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       // Normalizar campos: el backend manda "instagram", "facebook", "tiktok"
       // (y "website_url"). La interface usa "*_url" para todos, así que
       // aceptamos cualquiera de los dos nombres al llegar.
-      fetchedArray = fetchedArray.map(normalizeLead);
-
-      if (fetchedArray && fetchedArray.length > 0) {
-        setLeads(fetchedArray);
-        setIsUsingFallback(false);
-      } else {
-        // Log info and use rich fallback items so the app is immediately alive and gorgeous
-        console.info("El webhook retornó una lista vacía. Preseteando leads de muestra locales.");
-        setLeads(getFallbackLeads().map(normalizeLead));
-        setIsUsingFallback(true);
-      }
+      // Si no hay nada, dejamos la lista vacía (solo datos reales de la base).
+      setLeads(fetchedArray.map(normalizeLead));
     } catch (err: any) {
-      console.warn("Falla en consulta de webhook. Usando listado local para asegurar operatividad:", err);
-      setError("No se pudo conectar con el servidor de leads en este momento. Hemos cargado leads simulados.");
-      setLeads(getFallbackLeads().map(normalizeLead));
-      setIsUsingFallback(true);
+      console.error("Falla en consulta de webhook de leads:", err);
+      setError("No se pudo conectar con el servidor de leads en este momento. Intenta actualizar en unos instantes.");
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -227,7 +149,8 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       website_url: pickUrl(raw.website_url, raw.website, raw.web),
       instagram_url: pickUrl(raw.instagram_url, raw.instagram, raw.ig),
       facebook_url: pickUrl(raw.facebook_url, raw.facebook, raw.fb),
-      tiktok_url: pickUrl(raw.tiktok_url, raw.tiktok, raw.tt)
+      tiktok_url: pickUrl(raw.tiktok_url, raw.tiktok, raw.tt),
+      email: pickUrl(raw.email, raw.mail, raw.correo)
     };
   };
 
@@ -235,8 +158,26 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
     fetchLeads();
   }, [id_usuario]);
 
+  // Mantener la "cantidad por rubro" dentro del tope cuando cambian los rubros.
+  useEffect(() => {
+    setMaxCrawledPlacesPerSearch((prev) => Math.min(Math.max(1, prev), maxPorRubro));
+  }, [maxPorRubro]);
+
+  // Mientras la búsqueda está en curso, cada vez que se actualiza la lista de
+  // leads (vía el botón de recarga) comprobamos si ya llegaron todos los
+  // esperados (cantidad por rubro * cantidad de rubros).
+  useEffect(() => {
+    if (
+      searchStatus === "searching" &&
+      expectedNewLeads > 0 &&
+      leads.length - leadsBeforeSearch >= expectedNewLeads
+    ) {
+      setSearchStatus("finished");
+    }
+  }, [leads, searchStatus, expectedNewLeads, leadsBeforeSearch]);
+
   // Handle Search Trigger animation
-  const handleInitiateSearch = async (e: React.FormEvent) => {
+  const handleInitiateSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Armar el payload con los 4 parámetros pedidos al usuario
@@ -248,31 +189,34 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
       max_resultados: maxCrawledPlacesPerSearch
     };
 
-    setIsSearching(true);
+    // Recordar el estado actual para detectar luego cuándo terminó la carga.
+    setLeadsBeforeSearch(leads.length);
+    setExpectedNewLeads(maxCrawledPlacesPerSearch * searchStringsArray.length);
     setSearchStatus("searching");
 
+    // Fire-and-forget: el webhook de extracción puede tardar mucho y dar
+    // timeout, así que NO esperamos su respuesta. El usuario va recargando con
+    // el botón del banner para traer los leads a medida que se generan.
     try {
-      const response = await fetch("https://romanparisi.online/webhook/d8645069-3046-474c-831c-4e9a2fa336ce", {
+      fetch("https://romanparisi.online/webhook/d8645069-3046-474c-831c-4e9a2fa336ce", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`El webhook respondió con código: ${response.status}`);
-      }
-
-      // Esperar confirmación antes de cerrar el banner
-      setSearchStatus("finished");
-      // Refrescar la tabla de leads ahora que el webhook terminó
-      await fetchLeads();
+      }).catch((err) => console.error("Falló el disparo de búsqueda en el webhook:", err));
     } catch (err) {
-      console.error("Falló la búsqueda en el webhook:", err);
-      setSearchStatus("finished");
+      console.error("Falló el disparo de búsqueda en el webhook:", err);
+    }
+  };
+
+  // Botón del banner: recarga la lista de leads llamando al webhook de carga.
+  const handleBannerRefresh = async () => {
+    setBannerRefreshing(true);
+    try {
+      await fetchLeads();
     } finally {
-      setIsSearching(false);
+      setBannerRefreshing(false);
     }
   };
 
@@ -283,9 +227,10 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
   // Chips manipulation inside lead search engine
   const handleKeyDownChip = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
+    // Se confirma un rubro con Enter, coma o barra espaciadora.
+    if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
-      const val = currentChip.trim().replace(/,/g, "");
+      const val = currentChip.trim().replace(/[,\s]/g, "");
       if (val && !searchStringsArray.includes(val)) {
         setSearchStringsArray([...searchStringsArray, val]);
         setCurrentChip("");
@@ -357,8 +302,27 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
   };
 
   // Pagination Helpers
-  const totalPages = Math.ceil(leads.length / itemsPerPage);
-  const currentLeads = leads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Filtrado: busca el término en cualquier valor (string/número) del lead.
+  const normalizedFilter = filterTerm.trim().toLowerCase();
+  const filteredLeads = normalizedFilter
+    ? leads.filter((lead) =>
+        Object.values(lead).some((value) => {
+          if (value === null || value === undefined) return false;
+          if (typeof value === "string" || typeof value === "number") {
+            return String(value).toLowerCase().includes(normalizedFilter);
+          }
+          return false;
+        })
+      )
+    : leads;
+
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+  const currentLeads = filteredLeads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Si el filtro reduce las páginas por debajo de la actual, volvemos a la 1.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [normalizedFilter]);
 
   const getStatusBadge = (status?: string) => {
     const s = (status || "Pendiente").toLowerCase();
@@ -387,22 +351,6 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
     } catch {
       return dateStr;
     }
-  };
-
-  // Rating Stars Builder
-  const renderStars = (ratingNum?: string | number) => {
-    const r = parseFloat(String(ratingNum || 0)) || 0;
-    const rounded = Math.round(r);
-    return (
-      <div className="flex items-center gap-1 font-sans">
-        <div className="flex text-amber-400">
-          {[...Array(5)].map((_, i) => (
-            <Star key={i} className={`h-4 w-4 ${i < rounded ? "fill-amber-400" : "text-slate-200"}`} />
-          ))}
-        </div>
-        <span className="text-xs font-bold text-slate-600 ml-1">({r.toFixed(1)})</span>
-      </div>
-    );
   };
 
   return (
@@ -458,7 +406,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                   <span className="flex-1">Ciudad</span>
                   <span className="flex-1">Servicio</span>
                   <span className="flex-[2]">Rubros</span>
-                  <span className="w-20 text-center">Límite</span>
+                  <span className="w-28 text-center">Cantidad por rubro</span>
                   <span className="w-28" />
                 </div>
 
@@ -517,21 +465,22 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       onChange={(e) => setCurrentChip(e.target.value)}
                       onKeyDown={handleKeyDownChip}
                       className="flex-1 min-w-[120px] bg-transparent border-none py-0 px-1 text-sm outline-none placeholder:text-slate-400 font-medium"
-                      placeholder={searchStringsArray.length ? "Añadir rubro…" : "Rubros (Enter para añadir)"}
+                      placeholder={searchStringsArray.length ? "Añadir rubro (espacio o coma)…" : "Rubros (espacio o coma para añadir)"}
                     />
                   </div>
 
-                  {/* Límite */}
-                  <div className="relative w-full md:w-20 shrink-0">
+                  {/* Cantidad por rubro (tope: 100 / cantidad de rubros) */}
+                  <div className="relative w-full md:w-28 shrink-0">
                     <input
                       type="number"
                       id="maxCrawledPlacesPerSearch"
-                      max={100}
+                      max={maxPorRubro}
                       min={1}
+                      title={`Tope: ${maxPorRubro} por rubro (100 / ${searchStringsArray.length || 1} rubros)`}
                       className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 text-center focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-mono font-semibold"
                       value={maxCrawledPlacesPerSearch}
                       onChange={(e) => {
-                        const val = Math.min(100, Math.max(1, Number(e.target.value) || 1));
+                        const val = Math.min(maxPorRubro, Math.max(1, Number(e.target.value) || 1));
                         setMaxCrawledPlacesPerSearch(val);
                       }}
                     />
@@ -543,7 +492,7 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                     type="submit"
                     className="h-10 px-4 rounded-lg bg-[#4f39fb] hover:bg-[#4f39fb]/90 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 w-full md:w-28"
                   >
-                    {isSearching ? (
+                    {searchStatus === "searching" ? (
                       <>
                         <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
                         Buscando…
@@ -556,6 +505,12 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                     )}
                   </motion.button>
                 </div>
+
+                <p className="text-[11px] text-slate-400 px-1">
+                  Tope de <b className="text-slate-500 font-semibold">{maxPorRubro}</b> negocios por rubro
+                  {" "}(100 ÷ {searchStringsArray.length || 1} {searchStringsArray.length === 1 ? "rubro" : "rubros"}).
+                  Confirma cada rubro con barra espaciadora o coma.
+                </p>
               </form>
             </div>
 
@@ -579,16 +534,32 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       <div className="relative h-12 w-12 shrink-0 flex items-center justify-center">
                         <div className="absolute inset-0 rounded-full border-2 border-[#4f39fb]/20" />
                         <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4f39fb] border-r-[#4f39fb] animate-spin" />
-                        <Search className="h-5 w-5 text-[#4f39fb]" />
+                        <Sparkles className="h-5 w-5 text-[#4f39fb]" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[#4f39fb]">
-                          La búsqueda ha iniciado, no abandone.
+                          Generando leads… puede tardar unos minutos.
                         </p>
                         <p className="text-xs text-slate-600 mt-0.5 font-medium">
-                          Estamos extrayendo leads en Google Maps con los parámetros que indicaste. Esto puede tardar unos minutos.
+                          Presione el botón para traer sus nuevos leads a medida que se cargan.
+                          {expectedNewLeads > 0 && (
+                            <>
+                              {" "}Nuevos cargados:{" "}
+                              <b className="text-[#4f39fb]">
+                                {Math.max(0, leads.length - leadsBeforeSearch)}/{expectedNewLeads}
+                              </b>.
+                            </>
+                          )}
                         </p>
                       </div>
+                      <button
+                        onClick={handleBannerRefresh}
+                        disabled={bannerRefreshing}
+                        className="shrink-0 inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-[#4f39fb] hover:bg-[#4f39fb]/90 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                      >
+                        <RefreshCw className={`h-4 w-4 shrink-0 ${bannerRefreshing ? "animate-spin" : ""}`} />
+                        Ver mis nuevos leads
+                      </button>
                     </>
                   ) : (
                     <>
@@ -597,15 +568,15 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-emerald-800">
-                          ¡Búsqueda terminada! Encuentre sus nuevos leads debajo y la campaña nueva en su Dashboard.
+                          ¡Ya se subieron todos los leads! Encuéntrelos en el listado de abajo.
                         </p>
                         <p className="text-xs text-emerald-700/80 mt-0.5 font-medium">
-                          El procesamiento en Google Maps se completó con éxito.
+                          Se cargaron los {expectedNewLeads} leads de esta búsqueda. La campaña nueva ya está en su Dashboard.
                         </p>
                       </div>
                       <button
                         onClick={dismissSearchBanner}
-                        className="p-2 text-emerald-700/60 hover:text-emerald-900 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                        className="p-2 text-emerald-700/60 hover:text-emerald-900 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer self-start"
                         aria-label="Cerrar aviso de búsqueda"
                       >
                         <X className="h-4 w-4" />
@@ -618,29 +589,53 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
 
             {/* SECTOR DE LEADS INFERIOR */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    Leads conseguidos hasta ahora:
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {isUsingFallback 
-                      ? "Mostrando leads de muestra. Conecta una base de datos real con el webhook para poblar tu lista." 
-                      : "Listado de prospectos comerciales del buscador."}
-                  </p>
+              <div className="space-y-4 border-b border-slate-100 pb-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Leads conseguidos hasta ahora:
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Listado de prospectos comerciales del buscador.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={fetchLeads}
+                      className="p-2 text-slate-400 hover:text-[#4f39fb] rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+                      title="Actualizar listado de leads"
+                      disabled={loading}
+                    >
+                      <RefreshCw className={`h-4.5 w-4.5 ${loading ? "animate-spin text-[#4f39fb]" : ""}`} />
+                    </button>
+                    <span className="text-xs font-mono font-extrabold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60">
+                      {normalizedFilter ? `${filteredLeads.length} / ${leads.length}` : `Total: ${leads.length}`} Leads
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={fetchLeads} 
-                    className="p-2 text-slate-400 hover:text-[#4f39fb] rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
-                    title="Actualizar listado de leads"
-                    disabled={loading}
-                  >
-                    <RefreshCw className={`h-4.5 w-4.5 ${loading ? "animate-spin text-[#4f39fb]" : ""}`} />
-                  </button>
-                  <span className="text-xs font-mono font-extrabold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60">
-                    Total: {leads.length} Leads
-                  </span>
+
+                {/* Buscador: filtra por cualquier parámetro del lead */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={filterTerm}
+                    onChange={(e) => setFilterTerm(e.target.value)}
+                    placeholder="Buscar por negocio, campaña, email, estado, dirección, teléfono…"
+                    className="w-full h-10 bg-slate-50 rounded-lg border border-slate-200 pl-9 pr-9 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#4f39fb]/20 focus:border-[#4f39fb] outline-none transition-all font-medium"
+                  />
+                  {filterTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterTerm("")}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -651,8 +646,23 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                 </div>
               ) : leads.length === 0 ? (
                 <div className="py-16 text-center space-y-2">
-                  <p className="text-sm font-semibold text-slate-600">No se encontraron leads cargados.</p>
-                  <p className="text-xs text-slate-400">Prueba iniciar una búsqueda de extracción para comenzar.</p>
+                  {error ? (
+                    <>
+                      <p className="text-sm font-semibold text-rose-600">{error}</p>
+                      <button
+                        onClick={fetchLeads}
+                        className="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-[#4f39fb] hover:underline cursor-pointer"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Reintentar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-slate-600">Todavía no hay leads cargados.</p>
+                      <p className="text-xs text-slate-400">Inicia una búsqueda de extracción para comenzar a poblar tu lista.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -662,25 +672,44 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       <thead>
                         <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-bold tracking-wider border-b border-slate-100">
                           <th className="py-3 px-5">Negocio</th>
+                          <th className="py-3 px-5">Campaña</th>
                           <th className="py-3 px-5">Estado de Envío</th>
                           <th className="py-3 px-5">Fecha de Extracción</th>
                           <th className="py-3 px-5 text-right">Acción</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {currentLeads.map((lead, idx) => {
+                        {currentLeads.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-12 text-center">
+                              <p className="text-sm font-semibold text-slate-600">Sin coincidencias</p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                Ningún lead coincide con “{filterTerm}”. Probá con otro término.
+                              </p>
+                            </td>
+                          </tr>
+                        ) : currentLeads.map((lead, idx) => {
                           const name = lead.nombre_negocio || lead.nombre || "Comercio sin nombre";
                           const docDate = lead.fecha_creacion || lead.creado_en;
                           return (
-                            <tr 
+                            <tr
                               key={lead.id || lead.id_lead || idx}
-                              onClick={() => openLeadDetails(lead)} 
+                              onClick={() => openLeadDetails(lead)}
                               className="hover:bg-slate-50/75 cursor-pointer transition-colors duration-150 group"
                             >
                               <td className="py-4 px-5">
                                 <span className="text-slate-900 font-semibold group-hover:text-[#4f39fb] transition-colors text-sm">
                                   {name}
                                 </span>
+                              </td>
+                              <td className="py-4 px-5">
+                                {lead.nombre_campana ? (
+                                  <span className="inline-flex items-center rounded-md bg-[#4f39fb]/10 px-2.5 py-1 text-xs font-semibold text-[#4f39fb] border border-[#4f39fb]/20">
+                                    {lead.nombre_campana}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-400">—</span>
+                                )}
                               </td>
                               <td className="py-4 px-5">
                                 {getStatusBadge(lead.estado_envio || lead.estado)}
@@ -818,16 +847,23 @@ export default function GoogleMapsLeads({ id_usuario }: GoogleMapsLeadsProps) {
                       </div>
                     </div>
 
-                    {/* Rating comercial */}
+                    {/* Email de contacto (recibido por webhook con el nombre "email") */}
                     <div className="flex items-start gap-3">
                       <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                        <Mail className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Reputación en Google</p>
-                        <div className="text-xs font-semibold mt-0.5">
-                          {renderStars(selectedLead.rating)}
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Email</p>
+                        {selectedLead.email ? (
+                          <a
+                            href={`mailto:${selectedLead.email}`}
+                            className="text-xs font-semibold text-[#4f39fb] hover:underline truncate block select-all"
+                          >
+                            {selectedLead.email}
+                          </a>
+                        ) : (
+                          <p className="text-xs font-semibold text-slate-400">No especificado</p>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -3,19 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { fetchPreviousCampaigns, updateCampaign } from "../api";
 import { CampanaAnterior } from "../types";
 import CampaignWizard from "./CampaignWizard";
 import CampaignForm, { CampaignFormValues } from "./CampaignForm";
 import {
-  History,
   Inbox,
   ChevronDown,
   CheckCircle2,
   ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  PlusCircle,
+  PencilLine,
+  Sparkles,
+  Check,
+  Send
 } from "lucide-react";
 
 interface CampaignsScreenProps {
@@ -32,6 +36,23 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   // refreshKey se incrementa tras crear una nueva campaña para forzar recarga de la lista
   const [refreshKey, setRefreshKey] = useState(0);
+  // Pestaña activa: crear una campaña nueva o editar una existente
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  // Dropdown custom de selección de campaña
+  const [selectOpen, setSelectOpen] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar el dropdown al hacer click afuera
+  useEffect(() => {
+    if (!selectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
+        setSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [selectOpen]);
 
   const loadCampaigns = async () => {
     setLoadingList(true);
@@ -111,8 +132,10 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
     onCampaignCreated(id);
   };
 
+  const campaignCount = campaigns?.length ?? 0;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* Header común */}
       <div>
         <h2 className="font-sans text-2xl font-bold tracking-tight text-slate-800">
@@ -123,20 +146,68 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
         </p>
       </div>
 
-      {/* Sección A — Nueva Campaña */}
-      <section>
-        <CampaignWizard id_usuario={id_usuario} onCampaignCreated={handleCampaignCreated} />
-      </section>
+      {/* Control segmentado: Crear / Editar */}
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+        <button
+          type="button"
+          onClick={() => setMode("create")}
+          className={`relative flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer ${
+            mode === "create"
+              ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <PlusCircle className="h-4 w-4 shrink-0" />
+          Crear nueva
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("edit")}
+          className={`relative flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer ${
+            mode === "edit"
+              ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <PencilLine className="h-4 w-4 shrink-0" />
+          Editar existente
+          {campaignCount > 0 && (
+            <span
+              className={`ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                mode === "edit" ? "bg-indigo-100 text-indigo-600" : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              {campaignCount}
+            </span>
+          )}
+        </button>
+      </div>
 
-      {/* Separador visual */}
-      <div className="border-t border-slate-200" />
+      {/* Sección A — Nueva Campaña */}
+      {mode === "create" && (
+        <motion.section
+          key="create-panel"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <CampaignWizard id_usuario={id_usuario} onCampaignCreated={handleCampaignCreated} />
+        </motion.section>
+      )}
 
       {/* Sección B — Configuración de Campañas */}
-      <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-5">
+      {mode === "edit" && (
+      <motion.section
+        key="edit-panel"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5"
+      >
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-            <History className="h-4 w-4 text-indigo-500" />
-            Configuración de Campañas Existentes
+            <PencilLine className="h-4 w-4 text-indigo-500" />
+            Editar Campaña Existente
           </h3>
           <button
             type="button"
@@ -207,8 +278,16 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
               Aún no tienes campañas creadas
             </p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Crea tu primera campaña desde la sección superior para empezar. Después podrás editar su configuración aquí.
+              Crea tu primera campaña para empezar. Después podrás editar su configuración aquí.
             </p>
+            <button
+              type="button"
+              onClick={() => setMode("create")}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Crear nueva campaña
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -216,27 +295,82 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
               <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
                 Selecciona una campaña para editar
               </label>
-              <div className="relative">
-                <select
+              <div className="relative" ref={selectRef}>
+                <button
+                  type="button"
                   id="select_campaign_to_edit"
-                  value={selectedKey || ""}
-                  onChange={(e) => {
-                    setSelectedKey(e.target.value || null);
-                    setSaveFeedback(null);
-                  }}
-                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  onClick={() => setSelectOpen((o) => !o)}
+                  className={`w-full flex items-center gap-3 rounded-xl border bg-white py-2.5 pl-3 pr-10 text-left text-sm transition-all cursor-pointer ${
+                    selectOpen
+                      ? "border-indigo-500 ring-2 ring-indigo-500/15"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
-                  <option value="">— Elige una campaña —</option>
-                  {campaigns.map((camp, idx) => {
-                    const nombre = camp.campaign_name || camp.nombre_campana || `Histórica #${idx + 1}`;
-                    return (
-                      <option key={`${nombre}-${idx}`} value={nombre}>
-                        {nombre}
-                      </option>
-                    );
-                  })}
-                </select>
-                <ChevronDown className="h-4 w-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {selectedKey ? (
+                    <>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 text-xs font-bold uppercase">
+                        {selectedKey.charAt(0)}
+                      </span>
+                      <span className="font-semibold text-slate-800 truncate">{selectedKey}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                        <Send className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="text-slate-400">Elige una campaña…</span>
+                    </>
+                  )}
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform ${
+                      selectOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {selectOpen && (
+                    <motion.ul
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.14 }}
+                      className="absolute z-20 mt-2 w-full max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/5"
+                    >
+                      {campaigns.map((camp, idx) => {
+                        const nombre = camp.campaign_name || camp.nombre_campana || `Histórica #${idx + 1}`;
+                        const isSelected = nombre === selectedKey;
+                        return (
+                          <li key={`${nombre}-${idx}`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedKey(nombre);
+                                setSaveFeedback(null);
+                                setSelectOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
+                                isSelected
+                                  ? "bg-indigo-50 text-indigo-700"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <span
+                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold uppercase ${
+                                  isSelected ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                {nombre.charAt(0)}
+                              </span>
+                              <span className="font-medium truncate flex-1">{nombre}</span>
+                              {isSelected && <Check className="h-4 w-4 text-indigo-600 shrink-0" />}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
               </div>
               <p className="text-[10px] text-slate-500 mt-1.5">
                 Lista de campañas obtenida del servidor. Los cambios se guardan en el endpoint de actualización de campañas.
@@ -256,15 +390,19 @@ export default function CampaignsScreen({ id_usuario, onCampaignCreated }: Campa
                 />
               </div>
             ) : (
-              <div className="rounded-lg border border-slate-100 bg-slate-50/30 p-4 text-center">
-                <p className="text-xs text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-6 text-center space-y-1.5">
+                <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-400">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <p className="text-xs font-medium text-slate-500">
                   Selecciona una campaña del desplegable para editar su redacción.
                 </p>
               </div>
             )}
           </div>
         )}
-      </section>
+      </motion.section>
+      )}
     </div>
   );
 }
