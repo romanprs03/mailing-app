@@ -13,8 +13,10 @@ import InfoImportante from "./components/InfoImportante";
 import Reenvios from "./components/Reenvios";
 import Precios from "./components/Precios";
 import GoogleMapsLeads from "./components/GoogleMapsLeads";
-import { 
-  BarChart3, 
+import EstadisticasAdicionales from "./components/EstadisticasAdicionales";
+import {
+  BarChart3,
+  Gauge,
   Settings as SettingsIcon, 
   Send, 
   LogOut, 
@@ -46,7 +48,7 @@ export default function App() {
     return localStorage.getItem(`theairoom_${uid}_id_campana`) || "";
   });
 
-  const [currentScreen, setCurrentScreen] = useState<"dashboard" | "campaign" | "settings" | "info" | "onboarding" | "reenvios" | "precios" | "google_maps_leads">(() => {
+  const [currentScreen, setCurrentScreen] = useState<"dashboard" | "estadisticas" | "campaign" | "settings" | "info" | "onboarding" | "reenvios" | "precios" | "google_maps_leads">(() => {
     const uid = localStorage.getItem("pepper_id_usuario");
     if (!uid) {
       return "onboarding";
@@ -208,6 +210,20 @@ export default function App() {
                   Dashboard General
                 </button>
 
+                {/* 1.5 Estadísticas Adicionales */}
+                <button
+                  id="tab_estadisticas"
+                  onClick={() => setCurrentScreen("estadisticas")}
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    currentScreen === "estadisticas"
+                      ? "bg-indigo-600 text-white font-medium shadow-sm"
+                      : "text-slate-350 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <Gauge className="h-4 w-4 shrink-0" />
+                  Estadísticas adicionales
+                </button>
+
                 {/* 2. Campañas */}
                 <button
                   id="tab_campaign"
@@ -336,6 +352,7 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <h1 className="text-lg font-semibold text-slate-900">
                   {currentScreen === "dashboard" && "Dashboard General"}
+                  {currentScreen === "estadisticas" && "Estadísticas adicionales"}
                   {currentScreen === "campaign" && "Campañas"}
                   {currentScreen === "reenvios" && "Campaña de Reenvío"}
                   {currentScreen === "google_maps_leads" && "Google Maps Leads"}
@@ -373,6 +390,18 @@ export default function App() {
                     <Dashboard 
                       id_usuario={idUsuario} 
                     />
+                  </motion.div>
+                )}
+
+                {currentScreen === "estadisticas" && (
+                  <motion.div
+                    key="estadisticas-screen"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <EstadisticasAdicionales id_usuario={idUsuario} />
                   </motion.div>
                 )}
 

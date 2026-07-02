@@ -342,6 +342,40 @@ export async function updateCampaign(
 }
 
 /**
+ * Recupera las estadísticas adicionales (métricas de entrega, aperturas, clics,
+ * rebotes, etc.) de todos los leads del usuario para la sección
+ * "Estadísticas adicionales". El backend devuelve un lead por objeto con sus
+ * contadores; aceptamos tanto un array plano como un objeto envolvente.
+ */
+export async function fetchAdditionalStats(id_usuario: string): Promise<any[]> {
+  const response = await fetch("https://romanparisi.online/webhook/89b0eabc-d206-43a9-9c8f-1b95b3ccb213", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id_usuario }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error al recuperar estadísticas adicionales: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data && typeof data === "object") {
+    if (Array.isArray(data.leads)) return data.leads;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.stats)) return data.stats;
+    // Si vino un único objeto de lead (como en el ejemplo), lo envolvemos.
+    return [data];
+  }
+  return [];
+}
+
+/**
  * Recupera las campañas anteriores de un usuario
  */
 export async function fetchPreviousCampaigns(id_usuario: string): Promise<any[]> {
