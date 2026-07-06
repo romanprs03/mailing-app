@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { fetchCampaignMetrics, fetchPreviousCampaigns } from "../api";
+import { fetchCampaignMetrics, fetchPreviousCampaigns, fetchAdditionalStats } from "../api";
 import { MetricasResponse, CampanaAnterior } from "../types";
 import { 
   RefreshCw, 
@@ -33,8 +33,36 @@ interface DashboardProps {
   id_usuario: string;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers para leer los contadores de cada lead del segundo webhook
+// (misma lógica que la pestaña "Estadísticas Adicionales").
+// ---------------------------------------------------------------------------
+const num = (v: any): number => {
+  if (typeof v === "number") return isNaN(v) ? 0 : v;
+  if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  return 0;
+};
+
+const pref = (...vals: any[]): number => {
+  for (const v of vals) {
+    if (v !== undefined && v !== null && v !== "") return num(v);
+  }
+  return 0;
+};
+
+// Correos entregados de un lead (contador Mailjet + campo amigable del backend).
+const leadEntregados = (lead: any): number => pref(lead.DeliveredCount, lead.entregados);
+
+// Rebotes de un lead (directo, o suma de rebote duro + suave si no viene directo).
+const leadRebotados = (lead: any): number => {
+  const directo = pref(lead.BouncedCount, lead.rebotados);
+  if (directo > 0) return directo;
+  return num(lead.HardBouncedCount) + num(lead.SoftBouncedCount);
+};
+
 export default function Dashboard({ id_usuario }: DashboardProps) {
   const [metrics, setMetrics] = useState<MetricasResponse | null>(null);
+  const [statLeads, setStatLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -159,6 +187,21 @@ export default function Dashboard({ id_usuario }: DashboardProps) {
     };
   }, []);
 
+  // Carga de las estadísticas por lead (segundo webhook) que alimentan las
+  // tarjetas Enviado y Rebotado. Fire-and-forget: un fallo aquí no rompe el
+  // resto del dashboard.
+  const loadStatLeads = async () => {
+    if (!id_usuario) return;
+    try {
+      const rows = await fetchAdditionalStats(id_usuario);
+      const arr = Array.isArray(rows) ? rows : [];
+      setStatLeads(arr);
+      localStorage.setItem(`theairoom_${id_usuario}_stat_leads`, JSON.stringify(arr));
+    } catch (err) {
+      console.warn("No se pudieron traer las estadísticas por lead para el dashboard:", err);
+    }
+  };
+
   // Carga de métricas reales del webhook
   const loadMetrics = async (silent = false) => {
     if (!id_usuario) return;
@@ -183,6 +226,9 @@ export default function Dashboard({ id_usuario }: DashboardProps) {
         // Guardar en persistencia local con clave única de usuario
         localStorage.setItem(`theairoom_${id_usuario}_metrics_data`, JSON.stringify(data));
         localStorage.setItem(`theairoom_${id_usuario}_metrics_time`, timeNow);
+
+        // Refrescar en paralelo las estadísticas por lead (Enviado / Rebotado).
+        loadStatLeads();
 
         const isProcessing = localStorage.getItem(`pepper_leads_processing_${id_usuario}`) === "true";
         if (isProcessing) {
@@ -244,6 +290,19 @@ export default function Dashboard({ id_usuario }: DashboardProps) {
       setPrevError(null);
       setActiveStates({});
       setSelectedCampaignName(null);
+
+      // Cargar la cache de estadísticas por lead y refrescarlas del segundo webhook
+      const savedStats = localStorage.getItem(`theairoom_${id_usuario}_stat_leads`);
+      if (savedStats) {
+        try {
+          setStatLeads(JSON.parse(savedStats) || []);
+        } catch {
+          setStatLeads([]);
+        }
+      } else {
+        setStatLeads([]);
+      }
+      loadStatLeads();
 
       // Intentar cargar la cache del usuario específico de localStorage
       const saved = localStorage.getItem(`theairoom_${id_usuario}_metrics_data`);
@@ -315,30 +374,45 @@ export default function Dashboard({ id_usuario }: DashboardProps) {
     return metrics;
   })();
 
+  // Estadísticas por lead (segundo webhook) que alimentan Enviado y Rebotado.
+  // Si hay una campaña anterior seleccionada, filtramos los leads por su nombre.
+  const relevantStatLeads = selectedCampaignName
+    ? statLeads.filter((l) => (l.campaign_name || l.nombre_campana) === selectedCampaignName)
+    : statLeads;
+
+  const entregadosTotal = relevantStatLeads.reduce((s, l) => s + leadEntregados(l), 0);
+  const rebotadosTotal = relevantStatLeads.reduce((s, l) => s + leadRebotados(l), 0);
+  const hasStatData = relevantStatLeads.length > 0;
+
   // Cálculos estadísticos con safe fallbacks
-  const p = currentMetrics?.Pendiente || 0;
-  const e = currentMetrics?.Enviado || 0;
-  const r = currentMetrics?.Respondido || 0;
-  const reb = currentMetrics?.Rebotado || 0;
-  const nf = currentMetrics?.["No encontrado"] || 0;
+  const p = currentMetrics?.Pendiente || 0;                 // ← webhook de métricas
+  const r = currentMetrics?.Respondido || 0;                // ← webhook de métricas
+  const nf = currentMetrics?.["No encontrado"] || 0;        // ← webhook de métricas
+  // Rebotado = rebotados; Enviado = entregados + rebotados (ambos del 2º webhook).
+  // Si el segundo webhook no trajo datos, caemos a los valores del webhook de métricas.
+  const reb = hasStatData ? rebotadosTotal : (currentMetrics?.Rebotado || 0);
+  const e = hasStatData ? (entregadosTotal + rebotadosTotal) : (currentMetrics?.Enviado || 0);
 
   const activeCampaignName = currentMetrics?.campaign_name || localStorage.getItem(`theairoom_${id_usuario}_campaign_title_config`) || "";
 
-  const totalLeads = p + e + r + reb + nf;
+  // Rebotado está contenido dentro de Enviado, por eso NO se suma aparte al total.
+  const totalLeads = p + e + r + nf;
 
-  const processedLeads = e + r + reb + nf;
-  
+  const processedLeads = e + r + nf;
+
   const responseRate = e > 0 ? ((r / e) * 100).toFixed(1) : "0.0";
-  const deliveryRate = processedLeads > 0 ? (((processedLeads - reb - nf) / processedLeads) * 100).toFixed(1) : "0.0";
+  // Entregabilidad = entregados / enviados (los que llegaron sin rebotar).
+  const deliveredForRate = hasStatData ? entregadosTotal : Math.max(e - reb, 0);
+  const deliveryRate = e > 0 ? ((deliveredForRate / e) * 100).toFixed(1) : "0.0";
   const bounceRate = e > 0 ? ((reb / e) * 100).toFixed(1) : "0.0";
 
   // Configuración de segmentos para el visualizador circular de dona (Pure SVG)
+  // Rebotado va incluido dentro de Enviado, por eso no aparece como segmento propio.
   const donutData = [
-    { label: "Pendiente", count: p, color: "#94a3b8" }, 
-    { label: "Enviado", count: e, color: "#6366f1" }, 
-    { label: "Respondido", count: r, color: "#10b981" }, 
-    { label: "Rebotado", count: reb, color: "#f43f5e" }, 
-    { label: "No encontrado", count: nf, color: "#a1a1aa" }, 
+    { label: "Pendiente", count: p, color: "#94a3b8" },
+    { label: "Enviado", count: e, color: "#6366f1" },
+    { label: "Respondido", count: r, color: "#10b981" },
+    { label: "No encontrado", count: nf, color: "#a1a1aa" },
   ].filter(item => item.count > 0);
 
   const sumCount = donutData.reduce((acc, curr) => acc + curr.count, 0);
@@ -527,7 +601,9 @@ export default function Dashboard({ id_usuario }: DashboardProps) {
                 <span className="text-[10px] text-indigo-400 font-sans font-medium">leads</span>
               </div>
               <div className="mt-1 text-[10px] text-indigo-600 font-sans">
-                {(totalLeads > 0 ? (e / totalLeads) * 100 : 0).toFixed(1)}% del lote total
+                {hasStatData
+                  ? `${entregadosTotal} entregados · ${rebotadosTotal} rebotados`
+                  : `${(totalLeads > 0 ? (e / totalLeads) * 100 : 0).toFixed(1)}% del lote total`}
               </div>
             </motion.div>
 
