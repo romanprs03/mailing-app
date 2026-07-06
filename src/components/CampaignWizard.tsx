@@ -5,14 +5,19 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { createCampaign } from "../api";
+import { createCampaign, searchLeadsPeaky, PRECIO_POR_LEAD, MAX_RESULTADOS_PEAKY } from "../api";
 import CampaignForm, { CampaignFormValues } from "./CampaignForm";
 import {
   Sparkles,
   Linkedin,
   FileSpreadsheet,
   Upload,
-  Info
+  Info,
+  Search,
+  ExternalLink,
+  Code,
+  Calculator,
+  Check
 } from "lucide-react";
 
 interface CampaignWizardProps {
@@ -21,9 +26,17 @@ interface CampaignWizardProps {
 }
 
 export default function CampaignWizard({ id_usuario, onCampaignCreated }: CampaignWizardProps) {
-  const [leadsSource, setLeadsSource] = useState<"linkedin" | "file">("linkedin");
+  const [leadsSource, setLeadsSource] = useState<"linkedin" | "file" | "peaky">("linkedin");
   const [urlLinkedin, setUrlLinkedin] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
+
+  // Estado del modo "Encuentra nuevos leads" (Peaky)
+  const [jsonFiltros, setJsonFiltros] = useState("");
+  const [cantidadResultados, setCantidadResultados] = useState("");
+
+  const cantidadNum = parseInt(cantidadResultados, 10);
+  const cantidadValida = !isNaN(cantidadNum) && cantidadNum > 0;
+  const costoEstimado = cantidadValida ? cantidadNum * PRECIO_POR_LEAD : 0;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +119,32 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
       return;
     }
 
+    let filtrosParseados: Record<string, any> | null = null;
+    if (leadsSource === "peaky") {
+      if (!jsonFiltros.trim()) {
+        setError("Debes pegar el código JSON con los filtros de búsqueda.");
+        return;
+      }
+      try {
+        filtrosParseados = JSON.parse(jsonFiltros);
+      } catch {
+        setError("El código JSON pegado no es válido. Verifica que hayas copiado el código completo que se descarga en el formulario de filtros.");
+        return;
+      }
+      if (!cantidadValida) {
+        setError("Ingresa la cantidad de resultados que quieres obtener.");
+        return;
+      }
+      if (cantidadNum < 100) {
+        setError("La cantidad mínima de resultados por búsqueda es 100.");
+        return;
+      }
+      if (cantidadNum > MAX_RESULTADOS_PEAKY) {
+        setError(`La cantidad de resultados no puede ser mayor a ${MAX_RESULTADOS_PEAKY.toLocaleString("es-AR")} por búsqueda.`);
+        return;
+      }
+    }
+
     if (!values.nombreRemitente) {
       setError("El nombre del remitente es obligatorio.");
       return;
@@ -123,17 +162,28 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
     setShowDeployModal(true);
 
     try {
-      const response = await createCampaign(
-        id_usuario,
-        values.asunto,
-        values.cuerpo_html || undefined,
-        values.cuerpo_texto || undefined,
-        leadsSource,
-        leadsSource === "linkedin" ? urlLinkedin : undefined,
-        leadsSource === "file" && archivo ? archivo : undefined,
-        values.nombreRemitente,
-        values.campaign_name
-      );
+      const response = leadsSource === "peaky"
+        ? await searchLeadsPeaky(
+            id_usuario,
+            values.asunto,
+            values.cuerpo_html || undefined,
+            values.cuerpo_texto || undefined,
+            filtrosParseados as Record<string, any>,
+            cantidadNum,
+            values.nombreRemitente,
+            values.campaign_name
+          )
+        : await createCampaign(
+            id_usuario,
+            values.asunto,
+            values.cuerpo_html || undefined,
+            values.cuerpo_texto || undefined,
+            leadsSource,
+            leadsSource === "linkedin" ? urlLinkedin : undefined,
+            leadsSource === "file" && archivo ? archivo : undefined,
+            values.nombreRemitente,
+            values.campaign_name
+          );
 
       localStorage.setItem(`pepper_leads_processing_${id_usuario}`, "true");
 
@@ -147,7 +197,11 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
         localStorage.setItem(`theairoom_${id_usuario}_campaign_cuerpo_html`, values.cuerpo_html || "");
         localStorage.setItem(`theairoom_${id_usuario}_campaign_cuerpo_texto`, values.cuerpo_texto || "");
 
-        setSuccessMsg("¡Campaña iniciada e inyectada exitosamente!");
+        setSuccessMsg(
+          leadsSource === "peaky"
+            ? "¡Búsqueda de leads iniciada! Ya puedes ver tu nueva campaña en el dashboard principal."
+            : "¡Campaña iniciada e inyectada exitosamente!"
+        );
       } else {
         setError(response.error || "El webhook no notificó un resultado exitoso.");
         setShowDeployModal(false);
@@ -190,17 +244,35 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
               className="max-w-md w-full bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl text-center space-y-5"
             >
               <div className="flex justify-center">
-                <div className="relative flex items-center justify-center h-16 w-16 bg-indigo-50 rounded-full text-indigo-600">
-                  <span className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent" />
-                </div>
+                {loading ? (
+                  <div className="relative flex items-center justify-center h-16 w-16 bg-indigo-50 rounded-full text-indigo-600">
+                    <span className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent" />
+                  </div>
+                ) : (
+                  <div className="relative flex items-center justify-center h-16 w-16 bg-emerald-50 rounded-full text-emerald-600">
+                    <Check className="h-8 w-8 stroke-[3px]" />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
                 <h3 className="font-sans font-bold text-lg text-slate-800">
-                  Subiendo leads a la base de datos
+                  {loading
+                    ? leadsSource === "peaky"
+                      ? "Buscando nuevos leads"
+                      : "Subiendo leads a la base de datos"
+                    : leadsSource === "peaky"
+                      ? "¡Búsqueda iniciada!"
+                      : "¡Campaña desplegada!"}
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed font-sans">
-                  Súper, tus prospectos se están sincronizando con el servidor central de envíos de cold email. Esto puede demorar unos minutos.
+                  {loading
+                    ? leadsSource === "peaky"
+                      ? "Estamos cargando tus leads con los filtros definidos. Esto puede demorar unos minutos."
+                      : "Súper, tus prospectos se están sincronizando con el servidor central de envíos de cold email. Esto puede demorar unos minutos."
+                    : leadsSource === "peaky"
+                      ? "Listo, ya puedes ver tu nueva campaña en el dashboard principal."
+                      : "Tus prospectos se están sincronizando con el servidor central. Ya puedes ver tu nueva campaña en el dashboard principal."}
                 </p>
                 {error && (
                   <p className="text-[11px] text-amber-600 font-medium bg-amber-50 rounded-lg p-2 mt-1">
@@ -213,10 +285,11 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
                 <button
                   type="button"
                   id="btn_accept_deploy_modal"
+                  disabled={loading}
                   onClick={handleAcceptModal}
-                  className="w-full inline-flex justify-center items-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer"
+                  className="w-full inline-flex justify-center items-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer disabled:bg-indigo-200 disabled:cursor-not-allowed"
                 >
-                  Aceptar
+                  {loading ? "Procesando…" : "Aceptar"}
                 </button>
               </div>
             </motion.div>
@@ -242,7 +315,7 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
           1. Definición del Origen de Leads
         </h3>
 
-        <div className="grid grid-cols-2 gap-3 mb-5 p-1 bg-slate-50 rounded-xl max-w-sm">
+        <div className="grid grid-cols-3 gap-3 mb-5 p-1 bg-slate-50 rounded-xl max-w-xl">
           <button
             type="button"
             onClick={() => {
@@ -273,6 +346,21 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
             Subir CSV / XLSX
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLeadsSource("peaky");
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              leadsSource === "peaky"
+                ? "bg-white text-slate-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Search className="h-3.5 w-3.5 text-[#7c3aed]" />
+            Encuentra nuevos leads
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -300,7 +388,7 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
                 Al enviar la campaña, el scraper de LinkedIn en n8n extraerá dinámicamente los prospectos, recuperará sus variables y enriquecerá los correos corporativos antes de lanzarlos.
               </p>
             </motion.div>
-          ) : (
+          ) : leadsSource === "file" ? (
             <motion.div
               key="file-source"
               initial={{ opacity: 0, y: 10 }}
@@ -369,6 +457,79 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
                 )}
               </div>
             </motion.div>
+          ) : (
+            <motion.div
+              key="peaky-source"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="space-y-4"
+            >
+              {/* Paso 1: Completar filtros en el formulario externo */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  1. Completa tus filtros de búsqueda
+                </label>
+                <a
+                  href="https://peaky-leads-scraper-app.netlify.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[#6d28d9] transition-all cursor-pointer"
+                >
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  Completa tus filtros de búsqueda
+                </a>
+              </div>
+
+              {/* Paso 2: Pegar el código JSON descargado */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Code className="h-3.5 w-3.5 text-[#7c3aed]" />
+                  2. Pega el código de filtros (JSON)
+                </label>
+                <textarea
+                  rows={8}
+                  placeholder="Pega el código JSON aquí"
+                  value={jsonFiltros}
+                  onChange={(e) => setJsonFiltros(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 p-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] font-mono bg-slate-50/40 min-h-[160px]"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed flex items-center gap-1 bg-violet-50 p-2.5 rounded-lg border border-violet-100">
+                  <Info className="h-3.5 w-3.5 text-[#7c3aed] shrink-0" />
+                  El código JSON se descarga automáticamente al completar y confirmar los filtros de búsqueda en el formulario del botón violeta de arriba. Ábrelo, cópialo y pégalo aquí.
+                </p>
+              </div>
+
+              {/* Paso 3: Cantidad de resultados + costo estimado */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Calculator className="h-3.5 w-3.5 text-[#7c3aed]" />
+                  3. Cantidad de resultados a obtener
+                </label>
+                <input
+                  type="number"
+                  min={100}
+                  max={MAX_RESULTADOS_PEAKY}
+                  placeholder="Ej: 500"
+                  value={cantidadResultados}
+                  onChange={(e) => setCantidadResultados(e.target.value)}
+                  className="w-full max-w-[220px] rounded-lg border border-slate-200 py-2.5 px-3 text-sm text-slate-800 outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] font-mono font-semibold"
+                />
+                <div className="flex items-center justify-between gap-3 flex-wrap bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Precio de búsqueda: <b className="text-slate-700">USD ${PRECIO_POR_LEAD}</b> por lead.
+                  </p>
+                  <p className="text-sm font-bold text-[#7c3aed]">
+                    Costo estimado: USD ${costoEstimado.toFixed(2)}
+                  </p>
+                </div>
+                <p className="text-[10px] text-amber-600 leading-relaxed flex items-center gap-1 bg-amber-50 p-2.5 rounded-lg border border-amber-100">
+                  <Info className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  El mínimo es 100 por búsqueda. La cantidad no puede superar la cantidad de leads que el sistema encontró para tus filtros, ni ser mayor a {MAX_RESULTADOS_PEAKY.toLocaleString("es-AR")} por búsqueda.
+                </p>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -378,7 +539,7 @@ export default function CampaignWizard({ id_usuario, onCampaignCreated }: Campai
         mode="create"
         initialValues={cachedInitialValues}
         onSubmit={handleFormSubmit}
-        submitLabel="Desplegar Campaña"
+        submitLabel={leadsSource === "peaky" ? "Buscar" : "Desplegar Campaña"}
         externalLoading={loading}
         externalError={error}
         externalSuccess={successMsg}

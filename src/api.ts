@@ -17,6 +17,12 @@ const SETTINGS_WEBHOOK = "https://romanparisi.online/webhook/7061c1eb-b9b9-4161-
 const CAMPAIGN_WEBHOOK = "https://romanparisi.online/webhook/3eb1d6ac-4e8b-4c7a-9c22-ff42215b7f3f";
 const METRICS_WEBHOOK = "https://romanparisi.online/webhook/786471ae-93fe-456c-899e-9bd55ce88024";
 const UPDATE_CAMPAIGN_WEBHOOK = "https://romanparisi.online/webhook/d69922ab-44c4-457e-b2ed-9823cd539695";
+const PEAKY_LEADS_WEBHOOK = "https://romanparisi.online/webhook/cb0b5aec-d5d3-49ce-ae33-1cf8280f2b4e";
+
+/** Precio de búsqueda por cada lead (USD). */
+export const PRECIO_POR_LEAD = 0.0017;
+/** Tope máximo de resultados permitidos por búsqueda. */
+export const MAX_RESULTADOS_PEAKY = 30000;
 
 /**
  * Envía credenciales de login al webhook
@@ -270,6 +276,71 @@ export async function createCampaign(
 
     const data = await response.json();
     return { id_campana: data.id_campana, success: true, message: "Campaña creada con éxito." };
+  }
+}
+
+/**
+ * Busca nuevos leads con el scraper de Peaky Leads.
+ *
+ * Toma el JSON de filtros que el usuario descargó y pegó desde el formulario
+ * (https://peaky-leads-scraper-app.netlify.app/), le sobreescribe `totalResults`
+ * con la cantidad definida por el usuario y fuerza `skipLeadsWithoutEmails` a
+ * `true`. El body final combina los datos de la campaña con ese JSON de filtros.
+ */
+export async function searchLeadsPeaky(
+  id_usuario: string,
+  asunto: string,
+  cuerpo_html: string | undefined,
+  cuerpo_texto: string | undefined,
+  filtrosJson: Record<string, any>,
+  totalResults: number,
+  nombre_remitente?: string,
+  campaign_name?: string
+): Promise<CampañaResponse> {
+  // Sobreescribimos los dos campos requeridos sobre el JSON pegado por el usuario.
+  const filtros = {
+    ...filtrosJson,
+    totalResults,
+    skipLeadsWithoutEmails: true,
+  };
+
+  // El body combina los datos de la campaña con el JSON de filtros.
+  const payload: Record<string, any> = {
+    id_usuario,
+    asunto,
+    ...filtros,
+  };
+
+  if (cuerpo_html && cuerpo_html.trim() !== "") {
+    payload.cuerpo_html = cuerpo_html;
+  }
+  if (cuerpo_texto && cuerpo_texto.trim() !== "") {
+    payload.cuerpo_texto = cuerpo_texto;
+  }
+  if (nombre_remitente) {
+    payload.name = nombre_remitente;
+  }
+  if (campaign_name) {
+    payload.campaign_name = campaign_name;
+  }
+
+  const response = await fetch(PEAKY_LEADS_WEBHOOK, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error al buscar leads: ${response.status} ${response.statusText}`);
+  }
+
+  try {
+    const data = await response.json();
+    return { id_campana: data.id_campana, success: true, message: "Búsqueda de leads iniciada con éxito." };
+  } catch {
+    return { success: true, message: "Búsqueda de leads iniciada con éxito." };
   }
 }
 
